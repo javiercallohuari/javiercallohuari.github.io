@@ -1,11 +1,45 @@
 import cv2
+import numpy as np
 
-image = cv2.imread("descarga.jpg")
+droidcam_url = "http://192.168.0.10:4747/mjpegfeed"
+cap = cv2.VideoCapture(droidcam_url)
 
-upsampled_image = cv2.resize(image, dsize=(image.shape[1] * 2, image.shape[0] * 2), interpolation=cv2.INTER_CUBIC)
+traza = None
 
-cv2.imshow("Imagen original", image)
+lower_red = np.array([160, 100, 50])
+upper_red = np.array([180, 255, 255])
 
-cv2.imshow("Imagen ampliada", upsampled_image)
+while True:
+  
+    ret, frame = cap.read()
 
-cv2.waitKey(0)
+    if not ret:
+        print("No se pudo capturar el frame. ¿Está DroidCam ejecutándose?")
+        break
+
+    if traza is None:
+        traza = np.zeros_like(frame)
+
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+    mask = cv2.inRange(hsv, lower_red, upper_red)
+
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    for contour in contours:
+        if cv2.contourArea(contour) > 500:
+            cv2.drawContours(traza, [contour], -1, (0, 0, 255), 2)
+
+    frame = cv2.add(frame, traza)
+
+    cv2.imshow('Deteccion de Luz Roja y Dibujo de Figuras Geometricas', frame)
+
+    key = cv2.waitKey(1) & 0xFF
+    if key == ord('q'):
+        break
+    elif key == ord('c'):
+       
+        traza = np.zeros_like(frame)
+
+cap.release()
+cv2.destroyAllWindows()
